@@ -15,3 +15,56 @@
 
 
     }
+
+
+ private void ExportTicketQueue(List<TrainQueue> bookingList)
+    {
+        string csvText = string.Empty;
+        StringBuilder exportData = new StringBuilder();
+        exportData.Append("Agency Name,Booking Date/Time,Travel Date/Time,Pnr,Ticket Number,Pax Type,Sectors,Reference Number,Booking Status, Pax Name,Passenger Status,Invoice Amount" + "\n");
+        try
+        {
+            csvText = exportData.ToString();
+            if (bookingList.Count > 0)
+            {
+              
+                for (int i=0;i< bookingList.Count;i++)
+                {
+                    var Trainstatus = Enum.GetName(typeof(TrainBookingstatus), bookingList[i].status);
+                    if (Trainstatus == TrainBookingstatus.Confirm.ToString())
+                        Trainstatus = "Ticketed";
+                    
+                    foreach (var item in bookingList[i].passenger)
+                    {
+                        //invoiceAmount showing only for lead pax otherwise showing 0 
+                        decimal invoiceAmount = (item.PaxSequenceNo == 1)?bookingList[i].invoiceAmount:0; 
+                        var paxType = Enum.GetName(typeof(TrainPaxType), item.PaxType);
+                        var paxName = item.PaxName;
+                        var paxStatus = item.PassengerStatus;
+                        exportData.Append(Convert.ToString(bookingList[i].agencyName) + "," + Utility.UTCtoISTtimeZoneConverter(Convert.ToString(bookingList[i].createdOn)).ToString("dd MMM yyyy hh:mm tt") + "," + Convert.ToDateTime(bookingList[i].travelDate).ToString("dd MMM yyyy hh:mm tt") + "," + Convert.ToString(bookingList[i].pnr) + "," + Convert.ToString("'" + bookingList[i].ticketNumber) + "," + paxType + "," + bookingList[i].origin + "-" + bookingList[i].destination + "," + Convert.ToString(bookingList[i].transactionId) + "," + Trainstatus + "," + paxName + "," + paxStatus + "," + invoiceAmount + "\n");
+                    }
+                }
+                csvText = exportData.ToString();
+               
+            }
+            else
+            {
+                errorMsg = "There is no data in CSV";
+            }   
+        }
+        
+        catch (Exception ex)
+        {
+            Audit.Add(EventType.TrainTicketQueue, Severity.High, Convert.ToInt32(Session["memberId"]), "Exception while loading Export Data from Train Ticket Queue  Message : " + ex.Message + " |StackTrace: " + ex.StackTrace, "");
+            errorMsg = "Error occurred when CSV downloding";
+        }
+        if (bookingList.Count > 0)
+        {
+            Response.AddHeader("Content-Disposition", "attachment; filename=" + "TrainTicketQueue" + DateTime.Today.ToString("dd/MM/yy") + ".CSV");
+            Response.AddHeader("Content-Length", csvText.Length.ToString());
+            Response.Write(csvText);
+            Response.Flush();
+            Response.End();
+        }
+
+    }
