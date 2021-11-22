@@ -1,0 +1,17 @@
+  private void exportApplicationReport(DataTable reportTable)
+    { 
+       System.Text.StringBuilder reportCSV = new System.Text.StringBuilder();
+      
+           reportCSV.Append("ApplicationId,Name,MemberAddress,MemberCity,MemberState,Mobile_No,Agency_Name,Agency_Address,Agency_City,Agency_State,Isowned_Space,Business_Type,IATA_Code,Pan_no,Business_Years,Bookoing_volume,AppliedOn,Application_Status,Reason,ApprovedBy/RejectedBy,AgencyCreation_Date,Agency_type,Account_code,UserName,SalesHeadId,SalesHeadName\n");
+
+           if (reportTable.Rows.Count != 0)
+           {
+           for (int index = 0; index < reportTable.Rows.Count; index++)
+           {
+               reportCSV.Append(reportTable.Rows[index]["applicationid"].ToString() + "," + reportTable.Rows[index]["firstName"] + ' ' + reportTable.Rows[index]["lastName"] + "," + reportTable.Rows[index]["memberAddress"] + "," + reportTable.Rows[index]["memberCity"] + "," + reportTable.Rows[index]["memberState"] + "," + reportTable.Rows[index]["mobile"] + "," + reportTable.Rows[index]["agencyName"] + "," + reportTable.Rows[index]["agencyAddress"] + "," + reportTable.Rows[index]["agencyCity"] + "," + reportTable.Rows[index]["agencyState"] + "," + reportTable.Rows[index]["isOwnedSpace"] + "," + reportTable.Rows[index]["businesstype"] + "," + reportTable.Rows[index]["IATACode"] + "," + reportTable.Rows[index]["pan"] + "," + reportTable.Rows[index]["businessyears"] + "," + reportTable.Rows[index]["bookingvolume"] + "," + reportTable.Rows[index]["appliedOn"] + "," + reportTable.Rows[index]["ApplicationStatus"] + "," + reportTable.Rows[index]["reason"] + "," + reportTable.Rows[index]["approvedByrejectedBy"] + "," + reportTable.Rows[index]["AgencyCreationDate"] + "," + reportTable.Rows[index]["agenttype"] + "," + reportTable.Rows[index]["accountCode"] + "," + reportTable.Rows[index]["userName"] + "," + reportTable.Rows[index]["salesheadid"] +","+ reportTable.Rows[index]["salesHeadName"]+ "\n");
+           }
+           }
+            Utility.FileSaveAtClient("ApplicationReport",reportCSV.ToString());
+
+
+    }
