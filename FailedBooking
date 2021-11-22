@@ -1,0 +1,839 @@
+using System;
+using System.Collections.Generic;
+using System.Text;
+using System.Data;
+using System.Data.SqlClient;
+using TekTravel.Data;
+using System.Diagnostics;
+using System.Xml.Serialization;
+using System.IO;
+using System.Xml;
+using System.Collections;
+using TekTravel.Core;
+
+namespace TekTravel.BookingEngine
+{
+    public enum Status : int
+    {
+        NotSaved = 0,
+        Saved = 1,
+        Removed = 2,
+        InProgress = 3
+    }
+    public class FailedBooking
+    {
+        private int failedBookingId;
+        private int memberId;
+        private string pnr;
+        private int agencyId;
+        private DateTime createdOn;
+        private Status currentStatus;
+        private DateTime lastModifiedOn;
+        private BookingSource source;
+        private string agencyName;
+        private string itineraryXML;
+        private bool isRemoved;
+        private string bookingDetails;
+        private int totalCount;
+        private string b2b2bDetails;
+        private string errorMsg = string.Empty;
+        private BookingMode bookingMode;
+        private PaymentGatewaySource paySource;
+        private string paymentId;
+        private decimal paymentAmount;
+        private decimal ticketAmount;
+
+        public int FailedBookingId
+        {
+            get { return failedBookingId; }
+            set { failedBookingId = value; }
+        }
+
+        public int MemberId
+        {
+            get { return memberId; }
+            set { memberId = value; }
+        }
+
+        public string PNR
+        {
+            get { return pnr; }
+            set { pnr = value; }
+        }
+        public int AgencyId
+        {
+            get { return agencyId; }
+            set { agencyId = value; }
+        }
+        public DateTime CreatedOn
+        {
+            get { return createdOn; }
+            set { createdOn = value; }
+        }
+        public Status CurrentStatus
+        {
+            get { return currentStatus; }
+            set { currentStatus = value; }
+        }
+        public BookingSource Source
+        {
+            get { return source; }
+            set { source = value; }
+        }
+        public string AgencyName
+        {
+            get { return agencyName; }
+            set { agencyName = value; }
+        }
+        public string ItineraryXML
+        {
+            get { return itineraryXML; }
+            set { itineraryXML = value; }
+        }
+        public bool IsRemoved
+        {
+            get { return isRemoved; }
+            set { isRemoved = value; }
+        }
+        public string BookingDetails
+        {
+            get { return bookingDetails; }
+            set { bookingDetails = value; }
+        }
+        public int TotalCount
+        {
+            get { return totalCount; }
+            set { totalCount = value; }
+        }
+        //b2b2bDetails
+        public string B2B2BDetails
+        {
+            get { return b2b2bDetails; }
+            set { b2b2bDetails = value; }
+        }
+        private string transactionId;
+        public string TransactionId
+        {
+            get { return transactionId; }
+            set { transactionId = value; }
+        }
+
+        private long onlinePaymentId;
+        public long OnlinePaymentId
+        {
+            get { return onlinePaymentId; }
+            set { onlinePaymentId = value; }
+        }
+        public string ErrorMsg
+        {
+            get { return errorMsg; }
+            set { errorMsg = value; }
+        }
+        public BookingMode BookingMode
+        {
+            get { return bookingMode; }
+            set { bookingMode = value; }
+        }
+        public PaymentGatewaySource PaySource
+        {
+            get { return paySource; }
+            set { paySource = value; }
+        }
+        public string PaymentId
+        {
+            get { return paymentId; }
+            set { paymentId = value; }
+        }
+        public decimal PaymentAmount
+        {
+            get { return paymentAmount; }
+            set { paymentAmount = value; }
+        }
+        public decimal TicketAmount
+        {
+            get { return ticketAmount; }
+            set { ticketAmount = value; }
+        }
+        public void Save()
+        {
+            Trace.TraceInformation("FailedBooking.Save entered:");
+            SqlParameter[] paramList = new SqlParameter[14];
+            paramList[0] = new SqlParameter("@memberId", memberId);
+            paramList[1] = new SqlParameter("@pnr", pnr);
+            paramList[2] = new SqlParameter("@agencyId", agencyId);
+            paramList[3] = new SqlParameter("@currentStatus", (int)currentStatus);
+            paramList[4] = new SqlParameter("@source", (int)source);
+            paramList[5] = new SqlParameter("@agencyName", agencyName);
+            paramList[6] = new SqlParameter("@itineraryXML", itineraryXML);
+            paramList[7] = new SqlParameter("@isRemoved", isRemoved);
+            paramList[8] = new SqlParameter("@bookingDetails", bookingDetails);
+            paramList[9] = new SqlParameter("@failedBookingId", SqlDbType.Int);
+            paramList[9].Direction = ParameterDirection.Output;
+            paramList[10] = new SqlParameter("@b2b2bDetails", b2b2bDetails);
+            paramList[11] = new SqlParameter("@transactionId", transactionId);
+            paramList[12] = new SqlParameter("@onlinePaymentId", onlinePaymentId);
+            paramList[13] = new SqlParameter("@lastModifiedBy", memberId);
+
+
+            int rowAffected = Dal.ExecuteNonQuerySP(SPNames.AddFailedBooking, paramList);
+            if (rowAffected > 0 && paramList[9].Value != DBNull.Value)
+            {
+                failedBookingId = Convert.ToInt32(paramList[9].Value);
+            }
+            Trace.TraceInformation("FailedBooking.Save exited");
+        }
+
+        public static FailedBooking Load(string pnrNo)
+        {
+            Trace.TraceInformation("FailedBooking.Load entered:");
+            SqlParameter[] paramList = new SqlParameter[1];
+            paramList[0] = new SqlParameter("@pnr", pnrNo);
+            SqlConnection con = Dal.GetConnection();
+            SqlDataReader dr = Dal.ExecuteReaderSP(SPNames.GetFailedBooking, paramList, con);
+            FailedBooking fb = new FailedBooking();
+            if (dr.Read())
+            {
+                fb.pnr = Convert.ToString(dr["pnr"]);
+                fb.failedBookingId = Convert.ToInt32(dr["failedBookingId"]);
+                fb.agencyId = Convert.ToInt32(dr["agencyId"]);
+                fb.memberId = Convert.ToInt32(dr["memberId"]);
+                fb.createdOn = Convert.ToDateTime(dr["createdOn"]);
+                fb.currentStatus = (Status)Enum.Parse(typeof(Status), dr["currentStatus"].ToString());
+                fb.lastModifiedOn = Convert.ToDateTime(dr["lastModifiedOn"]);
+                fb.agencyName = Convert.ToString(dr["agencyName"]);
+                fb.source = (BookingSource)Enum.Parse(typeof(BookingSource), dr["source"].ToString());
+                fb.isRemoved = Convert.ToBoolean(dr["isRemoved"]);
+                fb.bookingDetails = Convert.ToString(dr["bookingDetails"]);
+                fb.onlinePaymentId = 0;
+                if (dr["onlinePaymentId"] != DBNull.Value && !string.IsNullOrEmpty(dr["onlinePaymentId"].ToString()))
+                {
+                    fb.onlinePaymentId = Convert.ToInt32(dr["onlinePaymentId"]);
+                }
+                if (dr["transactionId"] != DBNull.Value)
+                {
+                    fb.transactionId = Convert.ToString(dr["transactionId"]);
+                }
+            }
+            dr.Close();
+            con.Close();
+            Trace.TraceInformation("FailedBooking.Load exited:");
+            return fb;
+        }
+
+        public static FailedBooking Load(int failedBookingId)
+        {
+            Trace.TraceInformation("FailedBooking.Load entered:");
+            SqlParameter[] paramList = new SqlParameter[1];
+            paramList[0] = new SqlParameter("@failedBookingId", failedBookingId);
+            SqlConnection con = Dal.GetConnection();
+            SqlDataReader dr = Dal.ExecuteReaderSP(SPNames.GetFailedBookingByFailedBookingId, paramList, con);
+            FailedBooking fb = new FailedBooking();
+            if (dr.Read())
+            {
+                fb.pnr = Convert.ToString(dr["pnr"]);
+                fb.failedBookingId = Convert.ToInt32(dr["failedBookingId"]);
+                fb.agencyId = Convert.ToInt32(dr["agencyId"]);
+                fb.memberId = Convert.ToInt32(dr["memberId"]);
+                fb.createdOn = Convert.ToDateTime(dr["createdOn"]);
+                fb.currentStatus = (Status)Enum.Parse(typeof(Status), dr["currentStatus"].ToString());
+                fb.lastModifiedOn = Convert.ToDateTime(dr["lastModifiedOn"]);
+                fb.agencyName = Convert.ToString(dr["agencyName"]);
+                fb.source = (BookingSource)Enum.Parse(typeof(BookingSource), dr["source"].ToString());
+                fb.isRemoved = Convert.ToBoolean(dr["isRemoved"]);
+                fb.bookingDetails = Convert.ToString(dr["bookingDetails"]);
+                fb.b2b2bDetails = Convert.ToString(dr["b2b2bDetails"]);
+                if (dr["transactionId"] != DBNull.Value)
+                    fb.transactionId = Convert.ToString(dr["transactionId"]);
+                if (dr["onlinePaymentId"] != DBNull.Value)
+                    fb.onlinePaymentId = Convert.ToInt64(dr["onlinePaymentId"]);
+                if (dr["BookingMode"] != DBNull.Value)
+                    fb.BookingMode = (BookingMode)(Convert.ToInt32(dr["BookingMode"]));
+                if (dr["paymentAmount"] != DBNull.Value)
+                    fb.PaymentAmount = Convert.ToInt32(dr["paymentAmount"]);
+                if (dr["paymentId"] != DBNull.Value)
+                    fb.PaymentId = Convert.ToString(dr["paymentId"]);
+                if (dr["paymentGatewaySourceId"] != DBNull.Value)
+                    fb.PaySource = (PaymentGatewaySource)(Convert.ToInt32(dr["paymentGatewaySourceId"]));
+                if (dr["ticketAmount"] != DBNull.Value)
+                    fb.TicketAmount = Convert.ToInt32(dr["ticketAmount"]);
+
+            }
+            dr.Close();
+            con.Close();
+            Trace.TraceInformation("FailedBooking.Load exited:");
+            return fb;
+        }
+
+        public static FailedBooking Load(int agencyIdNo, string pnrNo)
+        {
+            Trace.TraceInformation("FailedBooking.LoadForAgency entered:");
+            SqlParameter[] paramList = new SqlParameter[2];
+            paramList[0] = new SqlParameter("@agencyId", agencyIdNo);
+            paramList[1] = new SqlParameter("@pnr", pnrNo);
+            SqlConnection con = Dal.GetConnection();
+            SqlDataReader dr = Dal.ExecuteReaderSP(SPNames.GetPNRFailedBookingForAgency, paramList, con);
+            FailedBooking fb = new FailedBooking();
+            if (dr.Read())
+            {
+                fb.pnr = Convert.ToString(dr["pnr"]);
+                fb.failedBookingId = Convert.ToInt32(dr["failedBookingId"]);
+                fb.agencyId = Convert.ToInt32(dr["agencyId"]);
+                fb.memberId = Convert.ToInt32(dr["memberId"]);
+                fb.createdOn = Convert.ToDateTime(dr["createdOn"]);
+                fb.currentStatus = (Status)Enum.Parse(typeof(Status), dr["currentStatus"].ToString());
+                fb.agencyName = Convert.ToString(dr["agencyName"]);
+                fb.lastModifiedOn = Convert.ToDateTime(dr["lastModifiedOn"]);
+                fb.source = (BookingSource)Enum.Parse(typeof(BookingSource), dr["source"].ToString());
+                fb.isRemoved = Convert.ToBoolean(dr["isRemoved"]);
+                fb.bookingDetails = Convert.ToString(dr["bookingDetails"]);
+               
+            }
+            dr.Close();
+            con.Close();
+            Trace.TraceInformation("FailedBooking.LoadForAgency exited:");
+            return fb;
+        }
+
+        public static FlightItinerary LoadItinerary(int pendingId)
+        {
+            Trace.TraceInformation("FailedBooking.LoadItinerary entered:");
+            string strItinerary = string.Empty; ;
+            SqlParameter[] paramList = new SqlParameter[1];
+            paramList[0] = new SqlParameter("@failedBookingId", pendingId);
+            SqlConnection con = Dal.GetConnection();
+            SqlDataReader dr = Dal.ExecuteReaderSP(SPNames.GetFailedBookingItinerary, paramList, con);
+            if (dr.Read())
+            {
+                strItinerary = Convert.ToString(dr["itineraryXML"]);
+            }
+            dr.Close();
+            con.Close();
+            Trace.TraceInformation("FailedBooking.LoadItinerary exited:");
+            return GetObject(strItinerary);
+        }
+
+        public static FlightItinerary LoadItineraryForPendingQueue(int pendingId)
+        {
+            Trace.TraceInformation("FailedBooking.LoadItinerary entered:");
+            string strItinerary = string.Empty; ;
+            SqlParameter[] paramList = new SqlParameter[1];
+            paramList[0] = new SqlParameter("@failedBookingId", pendingId);
+            SqlConnection con = Dal.GetConnection();
+            SqlDataReader dr = Dal.ExecuteReaderSP(SPNames.LoadFailedBookingItinerary, paramList, con);
+            if (dr.Read())
+            {
+                strItinerary = Convert.ToString(dr["itineraryXML"]);
+            }
+            dr.Close();
+            con.Close();
+            Trace.TraceInformation("FailedBooking.LoadItinerary exited:");
+            strItinerary = strItinerary.Replace("< GST>", "<GSTChargeBreakUp>").Replace("< GST >", "<GSTChargeBreakUp>").Replace("<GST >", "<GSTChargeBreakUp>").Replace("<GST>", "<GSTChargeBreakUp>").Replace("</ GST>", "</GSTChargeBreakUp>").Replace("</ GST >", "</GSTChargeBreakUp>").Replace("</GST >", "</GSTChargeBreakUp>").Replace("</GST>", "</GSTChargeBreakUp>");
+            strItinerary = strItinerary.Replace("< TaxableAmount>", "<TaxableValue>").Replace("< TaxableAmount >", "<TaxableValue>").Replace("<TaxableAmount >", "<TaxableValue>").Replace("<TaxableAmount>", "<TaxableValue>").Replace("</ TaxableAmount>", "</TaxableValue>").Replace("</ TaxableAmount >", "</TaxableValue>").Replace("</TaxableAmount >", "</TaxableValue>").Replace("</TaxableAmount>", "</TaxableValue>");
+            return GetObject(strItinerary);
+        }
+
+        public static bool CheckPNR(string pnrNo)
+        {
+            return CheckPNR(pnrNo, string.Empty);
+        }
+        public static bool CheckPNR(string pnrNo, string sessionId)
+        {
+            Trace.TraceInformation("FailedBooking.CheckPNR entered");
+            SqlParameter[] paramList = new SqlParameter[3];
+            paramList[0] = new SqlParameter("@pnr", pnrNo);
+            paramList[1] = new SqlParameter("@isPresent", SqlDbType.Bit)
+            {
+                Direction = ParameterDirection.Output
+            };
+            paramList[2] = string.IsNullOrWhiteSpace(sessionId)
+                ? new SqlParameter("@sessionId", DBNull.Value)
+                : new SqlParameter("@sessionId", sessionId);
+            Dal.ExecuteNonQuerySP(SPNames.CheckFailedBookingPNR, paramList);
+            Trace.TraceInformation("FailedBooking.CheckPNR exited");
+            return Convert.ToBoolean(paramList[1].Value);
+        }
+
+        public static void UpdateStatus(string pnrNo, Status stat, string remarks, int memberId)
+        {
+            Trace.TraceInformation("FailedBooking.UpdateStatus entered");
+            SqlParameter[] paramList = new SqlParameter[5];
+            paramList[0] = new SqlParameter("@pnr", pnrNo);
+            paramList[1] = new SqlParameter("@currentStatus", (int)stat);
+            paramList[2] = new SqlParameter("@remarks", remarks);
+            if (stat == Status.Saved || stat == Status.Removed)
+                paramList[3] = new SqlParameter("@isRemoved", true);
+            else
+                paramList[3] = new SqlParameter("@isRemoved", false);
+            paramList[4] = new SqlParameter("@lastModifiedBy", memberId);
+            Dal.ExecuteNonQuerySP(SPNames.UpdateFailedBookingStatus, paramList);
+            Trace.TraceInformation("FailedBooking.UpdateStatus exited");
+        }
+
+        public static void UpdateStatus(int failedBookingId, Status stat, string remarks, int memberId)
+        {
+            Trace.TraceInformation("FailedBooking.UpdateStatus entered");
+            SqlParameter[] paramList = new SqlParameter[5];
+            paramList[0] = new SqlParameter("@failedBookingId", failedBookingId);
+            paramList[1] = new SqlParameter("@currentStatus", (int)stat);
+            paramList[2] = new SqlParameter("@remarks", remarks);
+            if (stat == Status.Saved || stat == Status.Removed)
+                paramList[3] = new SqlParameter("@isRemoved", true);
+            else
+                paramList[3] = new SqlParameter("@isRemoved", false);
+            paramList[4] = new SqlParameter("@lastModifiedBy", memberId);
+            Dal.ExecuteNonQuerySP(SPNames.UpdateFailedBookingStatusById, paramList);
+            Trace.TraceInformation("FailedBooking.UpdateStatus exited");
+        }
+
+        public void UpdateFailedBookingStatus(int failedBookingId, string remarks, int memberId)
+        {
+            Trace.TraceInformation("FailedBooking.UpdateFailedBookingStatus entered");
+            SqlParameter[] paramList = new SqlParameter[7];
+            paramList[0] = new SqlParameter("@pnr", pnr);
+            paramList[1] = new SqlParameter("@currentStatus", (int)currentStatus);
+            paramList[2] = new SqlParameter("@remarks", remarks);
+            if (currentStatus == Status.Saved || currentStatus == Status.Removed)
+                paramList[3] = new SqlParameter("@isRemoved", true);
+            else
+                paramList[3] = new SqlParameter("@isRemoved", false);
+            paramList[4] = new SqlParameter("@itineraryXML", itineraryXML);
+            paramList[5] = new SqlParameter("@failedBookingId", failedBookingId);
+            paramList[6] = new SqlParameter("@lastModifiedBy", memberId);
+            Dal.ExecuteNonQuerySP(SPNames.UpdateFailedBookingStatusByFailedBookingId_air, paramList);
+            Trace.TraceInformation("FailedBooking.UpdateStatus exited");
+        }
+
+        public void UpdateFailedBooking(int failedBookingId, string remarks, int memberId)
+        {
+            Trace.TraceInformation("FailedBooking.UpdateFailedBooking entered");
+            SqlParameter[] paramList = new SqlParameter[6];
+            paramList[0] = new SqlParameter("@pnr", pnr);
+            paramList[1] = new SqlParameter("@currentStatus", (int)currentStatus);
+            paramList[2] = new SqlParameter("@remarks", remarks);
+            if (currentStatus == Status.Saved || currentStatus == Status.Removed)
+                paramList[3] = new SqlParameter("@isRemoved", true);
+            else
+                paramList[3] = new SqlParameter("@isRemoved", false);
+            paramList[4] = new SqlParameter("@failedBookingId", failedBookingId);
+            paramList[5] = new SqlParameter("@lastModifiedBy", memberId);
+            Dal.ExecuteNonQuerySP(SPNames.UpdateAirFailedBooking, paramList);
+            Trace.TraceInformation("FailedBooking.UpdateFailedBooking exited");
+        }
+
+        #region code block: Get Xml
+        public string GetUpdateFailedBookingStatusXML(string remarks, int memberId)
+        {
+            StringBuilder xml = new StringBuilder();
+            xml.Append("<FailedBooking>");
+            xml.Append("<UpdateFailedBookingStatus>");
+            xml.Append("<Pnr>" + pnr + "</Pnr>");
+            xml.Append("<CurrentStatus>" + (int)currentStatus + "</CurrentStatus>");
+            xml.Append("<Remarks>" + remarks + "</Remarks>");
+            if (currentStatus == Status.Saved || currentStatus == Status.Removed)
+                xml.Append("<IsRemoved>" + true + "</IsRemoved>");
+            else
+                xml.Append("<IsRemoved>" + false + "</IsRemoved>");
+
+            xml.Append("<ItineraryXML>" + itineraryXML + "</ItineraryXML>");
+            xml.Append("<FailedBookingId>" + failedBookingId + "</FailedBookingId>");
+            xml.Append("<lastModifiedBy>" + memberId + "</lastModifiedBy>");
+            xml.Append("</UpdateFailedBookingStatus>");
+            xml.Append("</FailedBooking>");
+            return xml.ToString();
+
+        }
+        #endregion
+
+        //For FaildBookingFilter
+        public static List<FailedBooking> GetAllFailedBookingFilter(string pnrNo, string agencyName, string airline, string paxName, int lower, int upper, string bookingStatus, string bookingMode, string txnId)
+        {
+            Trace.TraceInformation("FailedBooking.GetAllFailedBooking entered");
+            List<FailedBooking> lstFailedBooking = new List<FailedBooking>();
+            SqlParameter[] paramList = new SqlParameter[9];
+            if (string.IsNullOrEmpty(pnrNo))
+            {
+                paramList[0] = new SqlParameter("@pnr", DBNull.Value);
+            }
+            else
+            {
+                paramList[0] = new SqlParameter("@pnr", pnrNo);
+            }
+            if (string.IsNullOrEmpty(agencyName))
+            {
+                paramList[1] = new SqlParameter("@agencyName", DBNull.Value);
+            }
+            else
+            {
+                paramList[1] = new SqlParameter("@agencyName", agencyName);
+            }
+            if (string.IsNullOrEmpty(airline))
+            {
+                paramList[2] = new SqlParameter("@airline", DBNull.Value);
+            }
+            else
+            {
+                paramList[2] = new SqlParameter("@airline", airline);
+            }
+            if (String.IsNullOrEmpty(paxName))
+            {
+                paramList[3] = new SqlParameter("@paxName", DBNull.Value);
+            }
+            else
+            {
+                paramList[3] = new SqlParameter("@paxName", paxName);
+            }
+            paramList[4] = new SqlParameter("@lower", lower);
+            paramList[5] = new SqlParameter("@upper", upper);
+            if (string.IsNullOrEmpty(bookingStatus))
+            {
+                paramList[6] = new SqlParameter("@bStatus", DBNull.Value);
+            }
+            else
+            {
+                paramList[6] = new SqlParameter("@bStatus", Convert.ToInt32(bookingStatus));
+            }
+            if (string.IsNullOrEmpty(bookingMode))
+            {
+                paramList[7] = new SqlParameter("@bMode", DBNull.Value);
+            }
+            else
+            {
+                paramList[7] = new SqlParameter("@bMode", Convert.ToInt32(bookingMode));
+            }
+            if (string.IsNullOrEmpty(txnId))
+                paramList[8] = new SqlParameter("@txnId", DBNull.Value);
+            else
+                paramList[8] = new SqlParameter("@txnId", txnId);
+            using (SqlConnection con = Dal.GetConnection(true))
+            {
+                using (SqlDataReader dr = Dal.ExecuteReaderSP(SPNames.GetFailedBookingByFilter, paramList, con))
+                {
+                    while (dr.Read())
+                    {
+                        FailedBooking fb = new FailedBooking();
+                        fb.totalCount = Convert.ToInt32(dr["totalCount"]);
+                        fb.failedBookingId = Convert.ToInt32(dr["failedBookingId"]);
+                        fb.pnr = Convert.ToString(dr["pnr"]);
+                        fb.source = (BookingSource)Enum.Parse(typeof(BookingSource), dr["source"].ToString());
+                        fb.agencyId = Convert.ToInt32(dr["agencyId"]);
+                        fb.memberId = Convert.ToInt32(dr["memberId"]);
+                        fb.createdOn = Convert.ToDateTime(dr["createdOn"]);
+                        fb.currentStatus = (Status)Enum.Parse(typeof(Status), dr["currentStatus"].ToString());
+                        fb.lastModifiedOn = (DateTime)dr["lastModifiedOn"];
+                        fb.agencyName = Convert.ToString(dr["agencyName"]);
+                        fb.isRemoved = Convert.ToBoolean(dr["isRemoved"]);
+                        fb.bookingDetails = Convert.ToString(dr["bookingDetails"]);
+                        if (dr["ErrorMsg"] != DBNull.Value)
+                            fb.ErrorMsg = Convert.ToString(dr["ErrorMsg"]);
+                        if (dr["BookingMode"] != DBNull.Value)
+                            fb.BookingMode = (BookingMode)(Convert.ToInt32(dr["BookingMode"]));
+                        if (dr["paymentAmount"] != DBNull.Value)
+                            fb.PaymentAmount = Convert.ToInt32(dr["paymentAmount"]);
+                        if (dr["paymentId"] != DBNull.Value)
+                            fb.PaymentId = Convert.ToString(dr["paymentId"]);
+                        if (dr["paymentGatewaySourceId"] != DBNull.Value)
+                            fb.PaySource = (PaymentGatewaySource)(Convert.ToInt32(dr["paymentGatewaySourceId"]));
+                        if (dr["ticketAmount"] != DBNull.Value)
+                            fb.TicketAmount = Convert.ToInt32(dr["ticketAmount"]);
+                        if (dr["TransactionId"] != DBNull.Value)
+                            fb.TransactionId = Convert.ToString(dr["TransactionId"]);
+                        lstFailedBooking.Add(fb);
+                    }
+                    dr.Close();
+                    con.Close();
+                }
+            }
+            Trace.TraceInformation("FailedBooking.GetAllFailedBooking exited");
+            return lstFailedBooking;
+        }
+        public static List<FailedBooking> GetAllFailedBooking(int lower, int upper)
+        {
+            Trace.TraceInformation("FailedBooking.GetAllFailedBooking entered");
+            List<FailedBooking> lstFailedBooking = new List<FailedBooking>();
+
+            SqlParameter[] paramList = new SqlParameter[2];
+            paramList[0] = new SqlParameter("@lower", lower);
+            paramList[1] = new SqlParameter("@upper", upper);
+            using (SqlConnection con = Dal.GetConnection(true))
+            {
+                using (SqlDataReader dr = Dal.ExecuteReaderSP(SPNames.GetAllFailedBooking, paramList, con))
+                {
+                    while (dr.Read())
+                    {
+                        FailedBooking fb = new FailedBooking();
+                        fb.failedBookingId = Convert.ToInt32(dr["failedBookingId"]);
+                        fb.pnr = Convert.ToString(dr["pnr"]);
+                        fb.source = (BookingSource)Enum.Parse(typeof(BookingSource), dr["source"].ToString());
+                        fb.agencyId = Convert.ToInt32(dr["agencyId"]);
+                        fb.memberId = Convert.ToInt32(dr["memberId"]);
+                        fb.createdOn = Convert.ToDateTime(dr["createdOn"]);
+                        fb.currentStatus = (Status)Enum.Parse(typeof(Status), dr["currentStatus"].ToString());
+                        fb.lastModifiedOn = (DateTime)dr["lastModifiedOn"];
+                        fb.agencyName = Convert.ToString(dr["agencyName"]);
+                        fb.isRemoved = Convert.ToBoolean(dr["isRemoved"]);
+                        fb.bookingDetails = Convert.ToString(dr["bookingDetails"]);
+                        if (dr["ErrorMsg"] != DBNull.Value)
+                            fb.ErrorMsg = Convert.ToString(dr["ErrorMsg"]);
+                        if (dr["BookingMode"] != DBNull.Value)
+                            fb.BookingMode = (BookingMode)(Convert.ToInt32(dr["BookingMode"]));
+                        if (dr["paymentAmount"] != DBNull.Value)
+                            fb.PaymentAmount = Convert.ToInt32(dr["paymentAmount"]);
+                        if (dr["paymentId"] != DBNull.Value)
+                            fb.PaymentId = Convert.ToString(dr["paymentId"]);
+                        if (dr["paymentGatewaySourceId"] != DBNull.Value)
+                            fb.PaySource = (PaymentGatewaySource)(Convert.ToInt32(dr["paymentGatewaySourceId"]));
+                        if (dr["ticketAmount"] != DBNull.Value)
+                            fb.TicketAmount = Convert.ToInt32(dr["ticketAmount"]);
+                        if (dr["TransactionId"] != DBNull.Value)
+                            fb.TransactionId = Convert.ToString(dr["TransactionId"]);
+                        lstFailedBooking.Add(fb);
+                    }
+                    dr.Close();
+                    con.Close();
+                }
+            }
+            Trace.TraceInformation("FailedBooking.GetAllFailedBooking exited");
+            return lstFailedBooking;
+        }
+
+        public static int GetCount()
+        {
+            Trace.TraceInformation("FailedBooking.GetCount entered");
+            SqlParameter[] paramList = new SqlParameter[1];
+            paramList[0] = new SqlParameter("@count", SqlDbType.Int);
+            paramList[0].Direction = ParameterDirection.Output;
+            TekTravel.Data.Dal.ExecuteNonQuerySP(SPNames.CountFailedBooking, paramList);
+            Trace.TraceInformation("FailedBooking.GetCount exited");
+            return (int)paramList[0].Value;
+
+        }
+        public static int GetCount(int agencyIdNo)
+        {
+            Trace.TraceInformation("FailedBooking.GetCount entered");
+            SqlParameter[] paramList = new SqlParameter[2];
+            paramList[0] = new SqlParameter("@agencyId", agencyIdNo);
+            paramList[1] = new SqlParameter("@count", SqlDbType.Int);
+            paramList[1].Direction = ParameterDirection.Output;
+            TekTravel.Data.Dal.ExecuteNonQuerySP(SPNames.CountFailedBookingForAgency, paramList);
+            Trace.TraceInformation("FailedBooking.GetCount exited");
+            return (int)paramList[1].Value;
+
+        }
+        public static List<FailedBooking> GetAllFailedBooking(int agencyIdNo, int lower, int upper)
+        {
+            Trace.TraceInformation("FailedBooking.GetFailedBookingForAgency entered");
+            List<FailedBooking> lstFailedBooking = new List<FailedBooking>();
+            SqlParameter[] paramList = new SqlParameter[3];
+            paramList[0] = new SqlParameter("@agencyId", agencyIdNo);
+            paramList[1] = new SqlParameter("@lower", lower);
+            paramList[2] = new SqlParameter("@upper", upper);
+            SqlConnection con = Dal.GetConnection(true);
+            SqlDataReader dr = Dal.ExecuteReaderSP(SPNames.GetFailedBookingForAgency, paramList, con);
+            while (dr.Read())
+            {
+                FailedBooking fb = new FailedBooking();
+                fb.failedBookingId = Convert.ToInt32(dr["failedBookingId"]);
+                fb.pnr = Convert.ToString(dr["pnr"]);
+                fb.source = (BookingSource)Enum.Parse(typeof(BookingSource), dr["source"].ToString());
+                fb.agencyId = Convert.ToInt32(dr["agencyId"]);
+                fb.memberId = Convert.ToInt32(dr["memberId"]);
+                fb.createdOn = Convert.ToDateTime(dr["createdOn"]);
+                fb.currentStatus = (Status)Enum.Parse(typeof(Status), dr["currentStatus"].ToString());
+                fb.lastModifiedOn = (DateTime)dr["lastModifiedOn"];
+                fb.agencyName = Convert.ToString(dr["agencyName"]);
+                fb.itineraryXML = Convert.ToString(dr["itineraryXML"]);
+                fb.isRemoved = Convert.ToBoolean(dr["isRemoved"]);
+                fb.bookingDetails = Convert.ToString(dr["bookingDetails"]);
+                if (dr["TransactionId"] != DBNull.Value)
+                    fb.TransactionId = Convert.ToString(dr["TransactionId"]);
+                lstFailedBooking.Add(fb);
+            }
+            dr.Close();
+            con.Close();
+            Trace.TraceInformation("FailedBooking.GetFailedBookingForAgency exited");
+            return lstFailedBooking;
+        }
+
+        /// <summary>
+        /// To count total failed booking of Sub agent of Super Agent : Vruj
+        /// </summary>
+        /// <param name="agencyIdNo"></param>
+        /// <returns></returns>
+        public static int GetCount(string agencyIdNo)
+        {
+            Trace.TraceInformation("FailedBooking.GetCount entered");
+            SqlParameter[] paramList = new SqlParameter[2];
+            paramList[0] = new SqlParameter("@agencyId", agencyIdNo);
+            paramList[1] = new SqlParameter("@count", SqlDbType.Int);
+            paramList[1].Direction = ParameterDirection.Output;
+            TekTravel.Data.Dal.ExecuteNonQuerySP(SPNames.CountFailedBookingForSuper, paramList);
+            Trace.TraceInformation("FailedBooking.GetCount exited");
+            return Convert.ToInt32(paramList[1].Value);
+
+        }
+        /// <summary>
+        /// Function to get Failed booking of Sub Agent of Super Agent: vruj
+        /// </summary>
+        /// <param name="agencyIdNo"></param>
+        /// <param name="lower"></param>
+        /// <param name="upper"></param>
+        /// <returns></returns>
+        public static List<FailedBooking> GetAllFailedBooking(string agencyIdNo, int lower, int upper)
+        {
+            Trace.TraceInformation("FailedBooking.GetFailedBookingForSuper entered");
+            List<FailedBooking> lstFailedBooking = new List<FailedBooking>();
+            SqlParameter[] paramList = new SqlParameter[3];
+            paramList[0] = new SqlParameter("@agencyId", agencyIdNo);
+            paramList[1] = new SqlParameter("@lower", lower);
+            paramList[2] = new SqlParameter("@upper", upper);
+            FailedBooking fb;
+            using (SqlConnection con = Dal.GetConnection())
+            {
+                using (SqlDataReader dr = Dal.ExecuteReaderSP(SPNames.GetFailedBookingForSuper, paramList, con))
+                {
+                    while (dr.Read())
+                    {
+                        fb = new FailedBooking();
+                        fb.failedBookingId = Convert.ToInt32(dr["failedBookingId"]);
+                        fb.pnr = Convert.ToString(dr["pnr"]);
+                        fb.source = (BookingSource)Enum.Parse(typeof(BookingSource), dr["source"].ToString());
+                        fb.agencyId = Convert.ToInt32(dr["agencyId"]);
+                        fb.memberId = Convert.ToInt32(dr["memberId"]);
+                        fb.createdOn = Convert.ToDateTime(dr["createdOn"]);
+                        fb.currentStatus = (Status)Enum.Parse(typeof(Status), dr["currentStatus"].ToString());
+                        fb.lastModifiedOn = Convert.ToDateTime(dr["lastModifiedOn"]);
+                        fb.agencyName = Convert.ToString(dr["agencyName"]);
+                        fb.itineraryXML = Convert.ToString(dr["itineraryXML"]);
+                        fb.bookingDetails = Convert.ToString(dr["bookingDetails"]);
+                        lstFailedBooking.Add(fb);
+                    }
+                    dr.Close();
+                    con.Close();
+                }
+            }
+            Trace.TraceInformation("FailedBooking.GetFailedBookingForSuper exited");
+            return lstFailedBooking;
+        }
+
+        public static string GetXML(FlightItinerary itinerary)
+        {
+            Trace.TraceInformation("FailedBooking.GetXML entered:");
+            XmlDocument doc = new XmlDocument();
+            XmlSerializer serializer = new XmlSerializer(typeof(FlightItinerary));
+            MemoryStream stream = new MemoryStream();
+            try
+            {
+                serializer.Serialize(stream, itinerary);
+                stream.Position = 0;
+                doc.Load(stream);
+                return doc.InnerXml.Trim();
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    string messageText = "PNR = " + itinerary.PNR + "\r\n Booking Source is " + itinerary.FlightBookingSource.ToString() + "\r\n. PNR created successfully but itinerary failed to serialize.";
+                    string message = Util.GetExceptionInformation(ex, "Itinerary Serialization failed.\r\n" + messageText);
+                    TekTravelCore.Audit.Add(TekTravelCore.EventType.Exception, TekTravelCore.Severity.High, 0, message, string.Empty);
+                    TekTravel.Core.Email.Send("Itinerary Serialization Failed", message);
+                }
+                catch
+                {
+                }
+                return "Object can't be serailized";
+            }
+            finally
+            {
+                stream.Close();
+                Trace.TraceInformation("FailedBooking.GetXML exited");
+            }
+        }
+
+        public static FlightItinerary GetObject(string itinerary)
+        {
+            foreach (SupplierGroupEnum supplierGroupEnum in Enum.GetValues(typeof(SupplierGroupEnum)))
+            {
+                itinerary = itinerary.Replace(
+                "<SupplierGroupId>" + ((int)supplierGroupEnum).ToString() + "</SupplierGroupId>",
+                "<SupplierGroupId>" + supplierGroupEnum.ToString() + "</SupplierGroupId>");
+            }
+            StringReader strReader = null;
+            strReader = new StringReader(itinerary);
+            XmlSerializer serializer = new XmlSerializer(typeof(FlightItinerary));
+            XmlReader xmlRead = new XmlTextReader(strReader);
+            try
+            {
+                FlightItinerary fltItinerary = (FlightItinerary)serializer.Deserialize(xmlRead);
+                var webCheckInImageURL = string.Empty;
+                var webCheckInInstruction = string.Empty;
+                fltItinerary.IsWebCheckInAllowed = WebCheckIn.GetWebCheckInDetails(fltItinerary.Passenger,
+                    fltItinerary.Segments, fltItinerary.AirlineCode,
+                    ref webCheckInImageURL, ref webCheckInInstruction);
+                fltItinerary.WebCheckInImageURL = webCheckInImageURL;
+                fltItinerary.WebCheckInInstruction = webCheckInInstruction;
+                return fltItinerary;
+            }
+            catch
+            {
+                return null;
+            }
+            finally
+            {
+                strReader.Close();
+                xmlRead.Close();
+            }
+        }
+
+        /// <summary>
+        /// Method to convert B2b2b Dictionay into xml
+        /// </summary>
+        /// <param name="dictionary"></param>
+        /// <returns></returns>
+
+        public static string SerializeDic(IDictionary dictionary)
+        {
+            string xmlReturn = string.Empty;
+            try
+            {
+                using (StringWriter writer = new StringWriter())
+                {
+                    Serialize(writer, dictionary);
+                    xmlReturn = writer.ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                TekTravelCore.Audit.Add(TekTravelCore.EventType.Exception, TekTravelCore.Severity.High, 0, "Error while converting B2b2b dictionary into XML.Error: " + ex.Message + ". Stack trace :" + ex.StackTrace, string.Empty);
+
+            }
+            return "<?xml version=\"1.0\" encoding=\"UTF-16\"?><B2B2BDetails>" + xmlReturn + "</B2B2BDetails>";
+        }
+
+        public static void Serialize(TextWriter writer, IDictionary dictionary)
+        {
+            if (writer == null)
+                throw new ArgumentNullException("writer");
+
+            using (XmlTextWriter xwriter = new XmlTextWriter(writer))
+            {
+                Serialize(xwriter, dictionary);
+            }
+        }
+
+        public static void Serialize(XmlWriter writer, IDictionary dictionary)
+        {
+            if (writer == null)
+                throw new ArgumentNullException("writer");
+
+            if (dictionary == null)
+                throw new ArgumentNullException("dictionary");
+
+            foreach (DictionaryEntry entry in dictionary)
+            {
+                writer.WriteStartElement(string.Format("{0}", entry.Key));
+                writer.WriteValue(entry.Value);
+                writer.WriteEndElement();
+            }
+        }
+    }
+}
