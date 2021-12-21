@@ -1,0 +1,26 @@
+[12:22 AM] Priyanka Kumari
+<?xml version="1.0" encoding="utf-8"?>
+
+<config>
+
+    <SharedClientId>ApiIntegrationNew</SharedClientId>
+
+    <SharedClientPassword>12345</SharedClientPassword>
+
+    <SharedURL>http://sharedapi.tektravels.com/UserProfile.svc?wsdl</SharedURL>
+
+    <SharedRestURL>http://sharedapi.tektravels.com/UserProfile.svc/rest/</SharedRestURL>
+
+</config>
+
+[12:25 AM] Priyanka Kumari
+<connectionStrings>
+
+  <add name="SubagentDB" connectionString="Data Source=192.168.10.124;Initial Catalog=subagent_10June_10;User Id=tektravel;Password=tektravel@123123;MultipleActiveResultSets=True"/>
+
+  <add name="connectionStringReportServer" connectionString="Data Source=subagent_10June_10;Initial Catalog=TekTravelReports_ETBO_RC; User Id=tektravel;Password=tektravel@123123;MultipleActiveResultSets=True"/>
+
+  <add name="SubagentAuditDB" connectionString="Data Source=192.168.10.29;Initial Catalog=SubagentAuditDB; User Id=tektravel;Password=tektravel@123123;MultipleActiveResultSets=True"/>
+
+</connectionStrings>
+
